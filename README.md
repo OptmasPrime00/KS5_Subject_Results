@@ -1,11 +1,10 @@
 # KS5 GCE A Level Subject Results Explorer
 
-Interactive tool for exploring the provided KS5 Excel file by school, subject, grade, and local authority filters.
+Interactive tool for exploring the KS5 subject results by school, subject, grade, and local authority filters.
 
 ## What it does
 
-- Loads data from `Copy of 2024-2025_england_ks5underlying by A level subjects only.xlsx`
-- Builds a local SQLite database at `/tmp/ks5_subject_results.db` (Streamlit Community Cloud-safe)
+- Loads data from a local SQLite database at `data/ks5_subject_results.db`
 - Provides filter controls for:
   - School
   - Subject
@@ -32,3 +31,5 @@ streamlit run app.py
 ```
 
 Then open the local URL shown in your terminal (usually `http://localhost:8501`).
+
+The repository now expects `data/ks5_subject_results.db` to already exist.

@@ -6,11 +6,8 @@ from pathlib import Path
 import pandas as pd
 import streamlit as st
 
-from data_loader import ensure_database_is_fresh
-
 REPO_ROOT = Path(__file__).resolve().parent
-EXCEL_PATH = REPO_ROOT / "Copy of 2024-2025_england_ks5underlying by A level subjects only.xlsx"
-DB_PATH = Path("/tmp") / "ks5_subject_results.db"
+DB_PATH = REPO_ROOT / "data" / "ks5_subject_results.db"
 
 FILTERS: list[tuple[str, str]] = [
     ("school_name", "School"),
@@ -184,11 +181,10 @@ def main() -> None:
         "**Note:** If less than 5 entries, grades are suppressed"
     )
 
-    if not EXCEL_PATH.exists():
-        st.error(f"Excel file not found: {EXCEL_PATH}")
+    if not DB_PATH.exists():
+        st.error(f"Database file not found: {DB_PATH}")
         st.stop()
 
-    ensure_database_is_fresh(excel_path=EXCEL_PATH, sqlite_path=DB_PATH)
     df = read_results(DB_PATH, DB_PATH.stat().st_mtime)
 
     filtered = render_filters(df)
