@@ -13,9 +13,12 @@ Interactive tool for exploring the provided KS5 Excel file by school, qualificat
   - Grade / total entries
   - Local authority
   - Exam cohort
+  - Cleaner grouped filter UI with a single "Clear all selected filters" action
 - Shows:
   - Top-line metrics
-  - A grouped subject/grade table with useful metrics (total numeric exams, average ASIZE, average GSIZE)
+  - A per-school subject-grade matrix (subject rows and grade columns, including `Fail` and `Total`)
+  - A school comparison table (totals, pass/fail counts, pass/fail rates, A*-B metrics)
+  - CSV downloads for the grade matrix and school comparison table
   - Detailed filtered rows
 
 ## Setup
