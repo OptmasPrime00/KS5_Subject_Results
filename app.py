@@ -27,8 +27,9 @@ PREFERRED_GRADE_ORDER = ["A*", "A", "B", "C", "D", "E", "Fail", "Total"]
 
 
 @st.cache_data(show_spinner=False)
-def read_results(sqlite_path: Path, sqlite_mtime: float) -> pd.DataFrame:
-    _ = sqlite_mtime
+def read_results(sqlite_path: Path, cache_buster: float) -> pd.DataFrame:
+    """Read cached results; cache_buster invalidates cache when DB mtime changes."""
+    _ = cache_buster
     with sqlite3.connect(sqlite_path) as conn:
         df = pd.read_sql_query("SELECT * FROM institution_subject_results", conn)
     return df
