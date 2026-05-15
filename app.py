@@ -12,23 +12,11 @@ REPO_ROOT = Path(__file__).resolve().parent
 EXCEL_PATH = REPO_ROOT / "Copy of 2024-2025_england_ks5underlying by A level subjects only.xlsx"
 DB_PATH = Path("/tmp") / "ks5_subject_results.db"
 
-FILTER_GROUPS: list[tuple[str, list[tuple[str, str]]]] = [
-    (
-        "Main filters",
-        [
-            ("school_name", "School"),
-            ("qualification", "Qualification"),
-            ("subject", "Subject"),
-        ],
-    ),
-    (
-        "Additional filters",
-        [
-            ("grade_or_total_entries", "Grade / Total entries"),
-            ("local_authority", "Local authority"),
-            ("exam_cohort", "Exam cohort"),
-        ],
-    ),
+FILTERS: list[tuple[str, str]] = [
+    ("school_name", "School"),
+    ("subject", "Subject"),
+    ("grade_or_total_entries", "Grade / Total entries"),
+    ("local_authority", "Local authority"),
 ]
 
 GRADE_RENAMES = {
@@ -71,16 +59,13 @@ def apply_multiselect_filter(df: pd.DataFrame, column: str, label: str) -> pd.Da
 def render_filters(df: pd.DataFrame) -> pd.DataFrame:
     st.sidebar.header("Filters")
     if st.sidebar.button("Clear all selected filters", use_container_width=True):
-        for _, grouped_filters in FILTER_GROUPS:
-            for column, _ in grouped_filters:
-                st.session_state[get_filter_key(column)] = []
+        for column, _ in FILTERS:
+            st.session_state[get_filter_key(column)] = []
         st.rerun()
 
     filtered = df.copy()
-    for group_label, grouped_filters in FILTER_GROUPS:
-        with st.sidebar.expander(group_label, expanded=True):
-            for column, label in grouped_filters:
-                filtered = apply_multiselect_filter(filtered, column, label)
+    for column, label in FILTERS:
+        filtered = apply_multiselect_filter(filtered, column, label)
     return filtered
 
 
@@ -97,13 +82,13 @@ def build_school_subject_grade_table(filtered: pd.DataFrame) -> pd.DataFrame:
 
     pivot = (
         grade_data.groupby(
-            ["school_name", "qualification", "subject", "grade_display"],
+            ["school_name", "subject", "grade_display"],
             as_index=False,
             dropna=False,
         )["grade_count"]
         .sum()
         .pivot_table(
-            index=["school_name", "qualification", "subject"],
+            index=["school_name", "subject"],
             columns="grade_display",
             values="grade_count",
             aggfunc="sum",
@@ -116,7 +101,7 @@ def build_school_subject_grade_table(filtered: pd.DataFrame) -> pd.DataFrame:
         if grade not in pivot.columns:
             pivot[grade] = 0
 
-    id_columns = ["school_name", "qualification", "subject"]
+    id_columns = ["school_name", "subject"]
     ordered_grades = _order_grade_columns([column for column in pivot.columns if column not in id_columns])
     pivot = pivot[id_columns + ordered_grades].sort_values(id_columns).reset_index(drop=True)
 
@@ -132,10 +117,10 @@ def build_school_comparison_table(filtered: pd.DataFrame) -> pd.DataFrame:
     grade_data["grade_count"] = grade_data["number_of_exams"].fillna(0)
 
     comparison = (
-        grade_data.groupby(["school_name", "qualification", "grade_display"], as_index=False)["grade_count"]
+        grade_data.groupby(["school_name", "grade_display"], as_index=False)["grade_count"]
         .sum()
         .pivot_table(
-            index=["school_name", "qualification"],
+            index=["school_name"],
             columns="grade_display",
             values="grade_count",
             aggfunc="sum",
@@ -169,7 +154,6 @@ def build_school_comparison_table(filtered: pd.DataFrame) -> pd.DataFrame:
 
     comparison_columns = [
         "school_name",
-        "qualification",
         "total_exams",
         "fail_exams",
         "pass_exams",
@@ -182,7 +166,7 @@ def build_school_comparison_table(filtered: pd.DataFrame) -> pd.DataFrame:
 
 
 def select_grade_breakdown_columns(grade_breakdown_table: pd.DataFrame, show_all_grades: bool) -> pd.DataFrame:
-    id_columns = ["school_name", "qualification", "subject"]
+    id_columns = ["school_name", "subject"]
     if show_all_grades:
         return grade_breakdown_table
 
@@ -191,9 +175,8 @@ def select_grade_breakdown_columns(grade_breakdown_table: pd.DataFrame, show_all
 
 
 def main() -> None:
-    st.set_page_config(page_title="KS5 Subject Results Explorer", layout="wide")
-    st.title("KS5 Subject Results Explorer")
-    st.caption("Filter school-level KS5 subject outcomes from the provided Excel file.")
+    st.set_page_config(page_title="KS5 GCE A Level Subject Results Explorer", layout="wide")
+    st.title("KS5 GCE A Level Subject Results Explorer")
 
     if not EXCEL_PATH.exists():
         st.error(f"Excel file not found: {EXCEL_PATH}")
@@ -207,18 +190,16 @@ def main() -> None:
     school_comparison_table = build_school_comparison_table(filtered)
 
     st.subheader("Summary")
-    col1, col2, col3, col4, col5 = st.columns(5)
+    col1, col2, col3, col4 = st.columns(4)
     col1.metric("Filtered rows", f"{len(filtered):,}")
     col2.metric("Schools", filtered["school_name"].nunique())
     col3.metric("Subjects", filtered["subject"].nunique())
-    col4.metric("Qualifications", filtered["qualification"].nunique())
-    col5.metric(
+    col4.metric(
         "Total numeric exams",
         f"{filtered['number_of_exams'].fillna(0).sum():,.0f}",
     )
 
     st.subheader("Per-school subject grade breakdown")
-    st.caption("Rows are subjects; columns are grades, including Fail and Total.")
     show_all_grades = st.toggle("Show all grade columns", value=False)
     visible_grade_breakdown_table = select_grade_breakdown_columns(grade_breakdown_table, show_all_grades)
     st.dataframe(visible_grade_breakdown_table, use_container_width=True, hide_index=True)
@@ -233,11 +214,6 @@ def main() -> None:
     st.subheader("School comparison")
     st.caption("Compare schools by total entries, pass/fail counts, and key rates.")
     st.dataframe(school_comparison_table, use_container_width=True, hide_index=True)
-    comparison_chart_data = school_comparison_table.copy()
-    comparison_chart_data.loc[:, "school_label"] = (
-        comparison_chart_data["school_name"] + " | " + comparison_chart_data["qualification"]
-    )
-    st.bar_chart(comparison_chart_data.set_index("school_label")["pass_rate_%"], height=320)
     st.download_button(
         "Download school comparison as CSV",
         data=school_comparison_table.to_csv(index=False).encode("utf-8"),
@@ -253,8 +229,6 @@ def main() -> None:
         "urn",
         "school_name",
         "school_type",
-        "exam_cohort",
-        "qualification",
         "level",
         "subject",
         "grade_or_total_entries",

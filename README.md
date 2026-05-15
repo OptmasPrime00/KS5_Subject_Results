@@ -1,6 +1,6 @@
-# KS5 Subject Results Explorer
+# KS5 GCE A Level Subject Results Explorer
 
-Interactive tool for exploring the provided KS5 Excel file by school, qualification, subject, grade, and other filters.
+Interactive tool for exploring the provided KS5 Excel file by school, subject, grade, and local authority filters.
 
 ## What it does
 
@@ -8,15 +8,13 @@ Interactive tool for exploring the provided KS5 Excel file by school, qualificat
 - Builds a local SQLite database at `/tmp/ks5_subject_results.db` (Streamlit Community Cloud-safe)
 - Provides filter controls for:
   - School
-  - Qualification
   - Subject
   - Grade / total entries
   - Local authority
-  - Exam cohort
-  - Cleaner grouped filter UI with a single "Clear all selected filters" action
+  - Single "Clear all selected filters" action
 - Shows:
   - Top-line metrics
-  - A per-school subject-grade matrix (subject rows and grade columns, including `Fail` and `Total`)
+  - A per-school subject-grade matrix
   - A school comparison table (totals, pass/fail counts, pass/fail rates, A*-B metrics)
   - CSV downloads for the grade matrix and school comparison table
   - Detailed filtered rows
