@@ -4,8 +4,8 @@ Interactive tool for exploring the provided KS5 Excel file by school, qualificat
 
 ## What it does
 
-- Loads data from `Copy of 2024-2025_england_ks5underlying Kingston Surrey Sutton institution subject.xlsx`
-- Builds a local SQLite database at `data/ks5_subject_results.db`
+- Loads data from `Copy of 2024-2025_england_ks5underlying by A level subjects only.xlsx`
+- Builds a local SQLite database at `/tmp/ks5_subject_results.db` (Streamlit Community Cloud-safe)
 - Provides filter controls for:
   - School
   - Qualification

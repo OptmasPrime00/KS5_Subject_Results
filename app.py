@@ -9,8 +9,8 @@ import streamlit as st
 from data_loader import ensure_database_is_fresh
 
 REPO_ROOT = Path(__file__).resolve().parent
-EXCEL_PATH = REPO_ROOT / "Copy of 2024-2025_england_ks5underlying Kingston Surrey Sutton institution subject.xlsx"
-DB_PATH = REPO_ROOT / "data" / "ks5_subject_results.db"
+EXCEL_PATH = REPO_ROOT / "Copy of 2024-2025_england_ks5underlying by A level subjects only.xlsx"
+DB_PATH = Path("/tmp") / "ks5_subject_results.db"
 
 FILTER_GROUPS: list[tuple[str, list[tuple[str, str]]]] = [
     (
