@@ -148,17 +148,17 @@ def build_school_comparison_table(filtered: pd.DataFrame) -> pd.DataFrame:
         if grade not in comparison.columns:
             comparison[grade] = 0
 
-    comparison["total_exams"] = _to_int_series(comparison["Total"])
-    comparison["fail_exams"] = _to_int_series(comparison["Fail"])
-    comparison["pass_exams"] = (comparison["total_exams"] - comparison["fail_exams"]).clip(lower=0)
-    comparison["a_star_to_b_exams"] = _to_int_series(comparison["A*"] + comparison["A"] + comparison["B"])
-    comparison["pass_rate_%"] = (
+    comparison.loc[:, "total_exams"] = _to_int_series(comparison["Total"])
+    comparison.loc[:, "fail_exams"] = _to_int_series(comparison["Fail"])
+    comparison.loc[:, "pass_exams"] = (comparison["total_exams"] - comparison["fail_exams"]).clip(lower=0)
+    comparison.loc[:, "a_star_to_b_exams"] = _to_int_series(comparison["A*"] + comparison["A"] + comparison["B"])
+    comparison.loc[:, "pass_rate_%"] = (
         comparison["pass_exams"].div(comparison["total_exams"]).where(comparison["total_exams"] > 0) * 100
     ).round(1)
-    comparison["fail_rate_%"] = (
+    comparison.loc[:, "fail_rate_%"] = (
         comparison["fail_exams"].div(comparison["total_exams"]).where(comparison["total_exams"] > 0) * 100
     ).round(1)
-    comparison["a_star_to_b_rate_%"] = (
+    comparison.loc[:, "a_star_to_b_rate_%"] = (
         comparison["a_star_to_b_exams"].div(comparison["total_exams"]).where(comparison["total_exams"] > 0) * 100
     ).round(1)
 
@@ -234,7 +234,7 @@ def main() -> None:
     st.caption("Compare schools by total entries, pass/fail counts, and key rates.")
     st.dataframe(school_comparison_table, use_container_width=True, hide_index=True)
     comparison_chart_data = school_comparison_table.copy()
-    comparison_chart_data["school_label"] = (
+    comparison_chart_data.loc[:, "school_label"] = (
         comparison_chart_data["school_name"] + " | " + comparison_chart_data["qualification"]
     )
     st.bar_chart(comparison_chart_data.set_index("school_label")["pass_rate_%"], height=320)
