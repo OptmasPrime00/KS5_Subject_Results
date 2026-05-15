@@ -45,9 +45,17 @@ def read_results(sqlite_path: Path) -> pd.DataFrame:
     return df
 
 
+def get_filter_key(column: str) -> str:
+    return f"filter_{column}"
+
+
+def _to_int_series(series: pd.Series) -> pd.Series:
+    return series.round(0).astype(int)
+
+
 def apply_multiselect_filter(df: pd.DataFrame, column: str, label: str) -> pd.DataFrame:
     options = sorted(v for v in df[column].dropna().unique().tolist() if str(v).strip())
-    key = f"filter_{column}"
+    key = get_filter_key(column)
     selected = st.sidebar.multiselect(
         label,
         options=options,
@@ -65,7 +73,7 @@ def render_filters(df: pd.DataFrame) -> pd.DataFrame:
     if st.sidebar.button("Clear all selected filters", use_container_width=True):
         for _, grouped_filters in FILTER_GROUPS:
             for column, _ in grouped_filters:
-                st.session_state[f"filter_{column}"] = []
+                st.session_state[get_filter_key(column)] = []
         st.rerun()
 
     filtered = df.copy()
@@ -113,7 +121,7 @@ def build_school_subject_grade_table(filtered: pd.DataFrame) -> pd.DataFrame:
     pivot = pivot[id_columns + ordered_grades].sort_values(id_columns).reset_index(drop=True)
 
     for grade in ordered_grades:
-        pivot[grade] = pivot[grade].round(0).astype(int)
+        pivot[grade] = _to_int_series(pivot[grade])
 
     return pivot
 
@@ -140,12 +148,10 @@ def build_school_comparison_table(filtered: pd.DataFrame) -> pd.DataFrame:
         if grade not in comparison.columns:
             comparison[grade] = 0
 
-    comparison["total_exams"] = comparison["Total"].round(0).astype(int)
-    comparison["fail_exams"] = comparison["Fail"].round(0).astype(int)
+    comparison["total_exams"] = _to_int_series(comparison["Total"])
+    comparison["fail_exams"] = _to_int_series(comparison["Fail"])
     comparison["pass_exams"] = (comparison["total_exams"] - comparison["fail_exams"]).clip(lower=0)
-    comparison["a_star_to_b_exams"] = (
-        comparison["A*"].fillna(0) + comparison["A"].fillna(0) + comparison["B"].fillna(0)
-    ).round(0).astype(int)
+    comparison["a_star_to_b_exams"] = _to_int_series(comparison["A*"] + comparison["A"] + comparison["B"])
     comparison["pass_rate_%"] = (
         comparison["pass_exams"].div(comparison["total_exams"]).where(comparison["total_exams"] > 0) * 100
     ).round(1)
