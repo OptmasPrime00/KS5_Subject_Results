@@ -176,8 +176,13 @@ def select_grade_breakdown_columns(grade_breakdown_table: pd.DataFrame, show_all
 
 
 def main() -> None:
-    st.set_page_config(page_title="KS5 GCE A Level Subject Results Explorer", layout="wide")
-    st.title("KS5 GCE A Level Subject Results Explorer")
+    st.set_page_config(page_title="A Level Results Explorer", layout="wide")
+    st.title("A Level Results Explorer")
+    st.markdown(
+        "**2025 England KS5 GCE A Level Subject Results by School**  \n"
+        "**Source:** https://www.compare-school-performance.service.gov.uk/download-data  \n"
+        "**Note:** If less than 5 entries, grades are suppressed"
+    )
 
     if not EXCEL_PATH.exists():
         st.error(f"Excel file not found: {EXCEL_PATH}")
