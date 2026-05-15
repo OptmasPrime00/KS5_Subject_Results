@@ -27,8 +27,7 @@ COLUMN_RENAMES = {
 
 def load_excel_to_sqlite(excel_path: Path, sqlite_path: Path) -> None:
     """Load the KS5 subject results workbook into a SQLite database."""
-    df = pd.read_excel(excel_path, sheet_name=SOURCE_SHEET)
-    df = df.rename(columns=COLUMN_RENAMES)
+    df = pd.read_excel(excel_path, sheet_name=SOURCE_SHEET).rename(columns=COLUMN_RENAMES).copy()
 
     # Normalize text columns for cleaner filtering.
     text_columns = [
@@ -43,15 +42,16 @@ def load_excel_to_sqlite(excel_path: Path, sqlite_path: Path) -> None:
         "number_of_exams_raw",
     ]
     for column in text_columns:
-        df[column] = df[column].fillna("Unknown").astype(str).str.strip()
+        if column in df.columns:
+            df.loc[:, column] = df[column].fillna("Unknown").astype(str).str.strip()
 
     # Create numeric helper columns for metrics.
-    df["year"] = pd.to_numeric(df["year"], errors="coerce")
-    df["urn"] = pd.to_numeric(df["urn"], errors="coerce")
-    df["level"] = pd.to_numeric(df["level"], errors="coerce")
-    df["asize"] = pd.to_numeric(df["asize"], errors="coerce")
-    df["gsize"] = pd.to_numeric(df["gsize"], errors="coerce")
-    df["number_of_exams"] = pd.to_numeric(df["number_of_exams_raw"], errors="coerce")
+    numeric_columns = ["year", "urn", "level", "asize", "gsize"]
+    for column in numeric_columns:
+        if column in df.columns:
+            df.loc[:, column] = pd.to_numeric(df[column], errors="coerce")
+
+    df.loc[:, "number_of_exams"] = pd.to_numeric(df["number_of_exams_raw"], errors="coerce")
 
     sqlite_path.parent.mkdir(parents=True, exist_ok=True)
     with sqlite3.connect(sqlite_path) as conn:
