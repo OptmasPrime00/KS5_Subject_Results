@@ -59,7 +59,7 @@ def apply_multiselect_filter(df: pd.DataFrame, column: str, label: str) -> pd.Da
 
 def render_filters(df: pd.DataFrame) -> pd.DataFrame:
     st.sidebar.header("Filters")
-    if st.sidebar.button("Clear all selected filters", width="stretch"):
+    if st.sidebar.button("Clear all selected filters", use_container_width=True):
         for column, _ in FILTERS:
             st.session_state[get_filter_key(column)] = []
         st.rerun()
@@ -203,24 +203,24 @@ def main() -> None:
     st.subheader("Per-school subject grade breakdown")
     show_all_grades = st.toggle("Show all grade columns", value=False)
     visible_grade_breakdown_table = select_grade_breakdown_columns(grade_breakdown_table, show_all_grades)
-    st.dataframe(visible_grade_breakdown_table, width="stretch", hide_index=True)
+    st.dataframe(visible_grade_breakdown_table, use_container_width=True, hide_index=True)
     st.download_button(
         "Download grade breakdown as CSV",
         data=grade_breakdown_table.to_csv(index=False).encode("utf-8"),
         file_name="ks5_school_subject_grade_breakdown.csv",
         mime="text/csv",
-        width="stretch",
+        use_container_width=True,
     )
 
     st.subheader("School comparison")
     st.caption("Compare schools by total entries, pass/fail counts, and key rates.")
-    st.dataframe(school_comparison_table, width="stretch", hide_index=True)
+    st.dataframe(school_comparison_table, use_container_width=True, hide_index=True)
     st.download_button(
         "Download school comparison as CSV",
         data=school_comparison_table.to_csv(index=False).encode("utf-8"),
         file_name="ks5_school_comparison.csv",
         mime="text/csv",
-        width="stretch",
+        use_container_width=True,
     )
 
     st.subheader("Detailed rows")
@@ -238,7 +238,7 @@ def main() -> None:
         "asize",
         "gsize",
     ]
-    st.dataframe(filtered[display_columns], width="stretch", hide_index=True)
+    st.dataframe(filtered[display_columns], use_container_width=True, hide_index=True)
 
 
 if __name__ == "__main__":
