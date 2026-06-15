@@ -15,6 +15,25 @@ CREATE_LOCAL_AUTHORITY_INDEX_QUERY = (
     "CREATE INDEX IF NOT EXISTS idx_local_authority ON institution_subject_results(local_authority)"
 )
 TABLE_ROW_COUNT_QUERY = "SELECT COUNT(*) FROM institution_subject_results"
+METADATA_TABLE_NAME = "dataset_metadata"
+CREATE_METADATA_TABLE_QUERY = (
+    "CREATE TABLE IF NOT EXISTS dataset_metadata ("
+    "id INTEGER PRIMARY KEY CHECK (id = 1), "
+    "source_mtime_ns INTEGER NOT NULL, "
+    "source_size_bytes INTEGER NOT NULL, "
+    "expected_row_count INTEGER NOT NULL, "
+    "expected_total_numeric_exams REAL NOT NULL)"
+)
+UPSERT_METADATA_QUERY = (
+    "INSERT INTO dataset_metadata "
+    "(id, source_mtime_ns, source_size_bytes, expected_row_count, expected_total_numeric_exams) "
+    "VALUES (1, ?, ?, ?, ?) "
+    "ON CONFLICT(id) DO UPDATE SET "
+    "source_mtime_ns=excluded.source_mtime_ns, "
+    "source_size_bytes=excluded.source_size_bytes, "
+    "expected_row_count=excluded.expected_row_count, "
+    "expected_total_numeric_exams=excluded.expected_total_numeric_exams"
+)
 
 COLUMN_RENAMES = {
     "Year": "year",
@@ -62,11 +81,24 @@ def load_excel_to_sqlite(excel_path: Path, sqlite_path: Path) -> None:
 
     df.loc[:, "number_of_exams"] = pd.to_numeric(df["number_of_exams_raw"], errors="coerce")
 
+    expected_row_count = int(len(df))
+    expected_total_numeric_exams = float(df["number_of_exams"].fillna(0).sum())
+
     sqlite_path.parent.mkdir(parents=True, exist_ok=True)
     with sqlite3.connect(sqlite_path) as conn:
         df.to_sql(TABLE_NAME, conn, if_exists="replace", index=False)
         conn.execute(CREATE_SCHOOL_SUBJECT_INDEX_QUERY)
         conn.execute(CREATE_LOCAL_AUTHORITY_INDEX_QUERY)
+        conn.execute(CREATE_METADATA_TABLE_QUERY)
+        conn.execute(
+            UPSERT_METADATA_QUERY,
+            (
+                excel_path.stat().st_mtime_ns,
+                excel_path.stat().st_size,
+                expected_row_count,
+                expected_total_numeric_exams,
+            ),
+        )
         conn.commit()
 
 
@@ -87,12 +119,56 @@ def _database_has_rows(sqlite_path: Path) -> bool:
         return False
 
 
+def _database_matches_source(excel_path: Path, sqlite_path: Path) -> bool:
+    if not sqlite_path.exists():
+        return False
+
+    try:
+        with sqlite3.connect(sqlite_path) as conn:
+            metadata_table_exists = conn.execute(
+                "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type='table' AND name=?)",
+                (METADATA_TABLE_NAME,),
+            ).fetchone()
+            if not metadata_table_exists or metadata_table_exists[0] == 0:
+                return False
+
+            metadata = conn.execute(
+                "SELECT source_mtime_ns, source_size_bytes, expected_row_count, expected_total_numeric_exams "
+                "FROM dataset_metadata WHERE id = 1"
+            ).fetchone()
+            if metadata is None:
+                return False
+
+            source_mtime_ns, source_size_bytes, expected_row_count, expected_total_numeric_exams = metadata
+            if (
+                int(source_mtime_ns) != excel_path.stat().st_mtime_ns
+                or int(source_size_bytes) != excel_path.stat().st_size
+            ):
+                return False
+
+            actual_row_count = conn.execute("SELECT COUNT(*) FROM institution_subject_results").fetchone()
+            actual_total_numeric_exams = conn.execute(
+                "SELECT COALESCE(SUM(number_of_exams), 0) FROM institution_subject_results"
+            ).fetchone()
+
+            if not actual_row_count or not actual_total_numeric_exams:
+                return False
+
+            return (
+                int(actual_row_count[0]) == int(expected_row_count)
+                and abs(float(actual_total_numeric_exams[0]) - float(expected_total_numeric_exams)) < 1e-9
+            )
+    except sqlite3.Error:
+        return False
+
+
 def ensure_database_is_fresh(excel_path: Path, sqlite_path: Path) -> None:
     """Rebuild the SQLite database if the source workbook changed or DB is missing."""
     should_rebuild = (
         (not sqlite_path.exists())
         or (sqlite_path.stat().st_mtime < excel_path.stat().st_mtime)
         or (not _database_has_rows(sqlite_path))
+        or (not _database_matches_source(excel_path, sqlite_path))
     )
     if should_rebuild:
         load_excel_to_sqlite(excel_path=excel_path, sqlite_path=sqlite_path)
