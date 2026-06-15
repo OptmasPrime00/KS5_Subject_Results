@@ -56,6 +56,7 @@ COLUMN_RENAMES = {
 def load_excel_to_sqlite(excel_path: Path, sqlite_path: Path) -> None:
     """Load the KS5 subject results workbook into a SQLite database."""
     df = pd.read_excel(excel_path, sheet_name=SOURCE_SHEET).rename(columns=COLUMN_RENAMES).copy()
+    source_stats = excel_path.stat()
 
     # Normalize text columns for cleaner filtering.
     text_columns = [
@@ -93,8 +94,8 @@ def load_excel_to_sqlite(excel_path: Path, sqlite_path: Path) -> None:
         conn.execute(
             UPSERT_METADATA_QUERY,
             (
-                excel_path.stat().st_mtime_ns,
-                excel_path.stat().st_size,
+                source_stats.st_mtime_ns,
+                source_stats.st_size,
                 expected_row_count,
                 expected_total_numeric_exams,
             ),
@@ -122,6 +123,7 @@ def _database_has_rows(sqlite_path: Path) -> bool:
 def _database_matches_source(excel_path: Path, sqlite_path: Path) -> bool:
     if not sqlite_path.exists():
         return False
+    source_stats = excel_path.stat()
 
     try:
         with sqlite3.connect(sqlite_path) as conn:
@@ -141,22 +143,21 @@ def _database_matches_source(excel_path: Path, sqlite_path: Path) -> bool:
 
             source_mtime_ns, source_size_bytes, expected_row_count, expected_total_numeric_exams = metadata
             if (
-                int(source_mtime_ns) != excel_path.stat().st_mtime_ns
-                or int(source_size_bytes) != excel_path.stat().st_size
+                int(source_mtime_ns) != source_stats.st_mtime_ns
+                or int(source_size_bytes) != source_stats.st_size
             ):
                 return False
 
-            actual_row_count = conn.execute("SELECT COUNT(*) FROM institution_subject_results").fetchone()
-            actual_total_numeric_exams = conn.execute(
-                "SELECT COALESCE(SUM(number_of_exams), 0) FROM institution_subject_results"
+            actual_metrics = conn.execute(
+                "SELECT COUNT(*), COALESCE(SUM(number_of_exams), 0) FROM institution_subject_results"
             ).fetchone()
 
-            if not actual_row_count or not actual_total_numeric_exams:
+            if not actual_metrics:
                 return False
 
             return (
-                int(actual_row_count[0]) == int(expected_row_count)
-                and abs(float(actual_total_numeric_exams[0]) - float(expected_total_numeric_exams)) < 1e-9
+                int(actual_metrics[0]) == int(expected_row_count)
+                and abs(float(actual_metrics[1]) - float(expected_total_numeric_exams)) < 1e-9
             )
     except sqlite3.Error:
         return False
