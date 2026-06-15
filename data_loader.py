@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 import sqlite3
 from pathlib import Path
 
@@ -82,8 +83,8 @@ def load_excel_to_sqlite(excel_path: Path, sqlite_path: Path) -> None:
 
     df.loc[:, "number_of_exams"] = pd.to_numeric(df["number_of_exams_raw"], errors="coerce")
 
-    expected_row_count = int(len(df))
-    expected_total_numeric_exams = float(df["number_of_exams"].fillna(0).sum())
+    expected_row_count = len(df)
+    expected_total_numeric_exams = df["number_of_exams"].fillna(0).sum()
 
     sqlite_path.parent.mkdir(parents=True, exist_ok=True)
     with sqlite3.connect(sqlite_path) as conn:
@@ -131,7 +132,7 @@ def _database_matches_source(excel_path: Path, sqlite_path: Path) -> bool:
                 "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type='table' AND name=?)",
                 (METADATA_TABLE_NAME,),
             ).fetchone()
-            if not metadata_table_exists or metadata_table_exists[0] == 0:
+            if not metadata_table_exists or not metadata_table_exists[0]:
                 return False
 
             metadata = conn.execute(
@@ -143,8 +144,8 @@ def _database_matches_source(excel_path: Path, sqlite_path: Path) -> bool:
 
             source_mtime_ns, source_size_bytes, expected_row_count, expected_total_numeric_exams = metadata
             if (
-                int(source_mtime_ns) != source_stats.st_mtime_ns
-                or int(source_size_bytes) != source_stats.st_size
+                source_mtime_ns != source_stats.st_mtime_ns
+                or source_size_bytes != source_stats.st_size
             ):
                 return False
 
@@ -156,8 +157,13 @@ def _database_matches_source(excel_path: Path, sqlite_path: Path) -> bool:
                 return False
 
             return (
-                int(actual_metrics[0]) == int(expected_row_count)
-                and abs(float(actual_metrics[1]) - float(expected_total_numeric_exams)) < 1e-9
+                actual_metrics[0] == expected_row_count
+                and math.isclose(
+                    actual_metrics[1],
+                    expected_total_numeric_exams,
+                    rel_tol=1e-9,
+                    abs_tol=1e-6,
+                )
             )
     except sqlite3.Error:
         return False
